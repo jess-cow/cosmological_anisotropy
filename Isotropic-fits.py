@@ -19,7 +19,8 @@ from astropy.cosmology import w0wzCDM
 from astropy.cosmology import FlatLambdaCDM
 from astropy.cosmology import w0waCDM 
 
-direc = 'DataRelease/Pantheon+_Data/4_DISTANCES_AND_COVAR/'
+direc = '/data/jac304/DataRelease/Pantheon+_Data/4_DISTANCES_AND_COVAR/'#change to your own directory of data
+
 table = ascii.read(direc+'Pantheon+SH0ES.dat')
 stat = np.loadtxt(direc+'Pantheon+SH0ES_STATONLY.cov', skiprows=1)
 dstat = np.reshape(stat, (1701, 1701))
@@ -363,5 +364,10 @@ def run_chains(model, N_step, zarr, m_b):
     else:
         raise ValueError
     return(samples)
+
+##################################
+#edit here!
+##############################
+
 
 run_chains('wCDM', 100000, zCMB, m_b_corr)
