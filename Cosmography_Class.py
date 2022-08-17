@@ -2,7 +2,7 @@
 class Cosmography:
     '''Class for calculating distance luminosity relations'''
 
-    def __init__(self, zarr, m_b, covmat):
+    def __init__(self, zarr, m_b, covmat, ra, dec):
         import numpy as np
         import astropy
         from astropy import units as u
@@ -13,6 +13,12 @@ class Cosmography:
         from astropy.io import ascii
         from astropy.coordinates import SkyCoord
         import matplotlib.pyplot as plt
+       
+        
+        
+
+
+
 
 
         import emcee
@@ -27,7 +33,63 @@ class Cosmography:
         self.invC = np.linalg.inv(covmat)
         self.z = zarr
         self.m_b = m_b
+        self.ra_CMB = 154 *np.pi/180
+        self.dec_CMB = -2 * np.pi/180
+        self.dec_SNe = dec *np.pi/180
+        self.ra_SNe = ra *np.pi/180
+        self.c = const.c* u.s/u.km 
+        self.n1 = SkyCoord(l=118, b=85, frame = 'galactic', unit='deg')
+        self.n2 = SkyCoord(l = 341, b =4, frame = 'galactic', unit='deg')
+        self.n3 =SkyCoord( l = 71, b = - 4, frame = 'galactic', unit='deg').transform_to('icrs')
+        
     
+#
+# omega_k = 0
+# w = -1
+#to do cpl model
+    def F_decay(self, z, S):
+        '''decay function for Q dipole'''
+    #     F = 1
+    #     exponential
+        F = np.exp(-z/S)
+        #linear
+    #     F = 1 - z/S
+    #     top-hat
+    #     F = np.zeros(z.shape)
+    #     for i in range(0, len(z)-1) z:
+    #         if z < S:
+    #             F[i] = 1
+    #         else:
+    #             F[i] = 0
+        return(F)
+
+    def sep( lat2, lon2):
+        '''calculates angular separation between two points'''
+        lat1 = dec_SNe; lon1 = ra_SNe;
+        sdlon = np.sin(lon2 - lon1)
+        cdlon = np.cos(lon2 - lon1)
+        slat1 = np.sin(lat1)
+        slat2 = np.sin(lat2)
+        clat1 = np.cos(lat1)
+        clat2 = np.cos(lat2)
+
+        num1 = clat2 * sdlon
+        num2 = clat1 * slat2 - slat1 * clat2 * cdlon
+        denominator = slat1 * slat2 + clat1 * clat2 * cdlon
+        e =  np.arctan2(np.hypot(num1, num2), denominator)
+        return(np.cos(e))
+    
+    def quadrupole_coord():
+        
+        theta1 = self.sep(n1_dec, n1_ra)
+        theta2 =  self.sep(n2.dec.value * np.pi/180, n2.ra.value * np.pi/180)
+        theta3 = self.sep(n3.dec.value * np.pi/180, n3.ra.value * np.pi/180)
+        e = sep(dec_CMB,ra_CMB)   
+        return(theta1, theta2, theta3)
+        
+
+     
+                
 
     def log_likelihood(self, theta, model):
         '''log likelihood function m '''
@@ -44,6 +106,8 @@ class Cosmography:
             Ode0 = 1 - Om0
             flc = wCDM(H0, Om0, Ode0, w0)
             mod = flc.distmod(z).value + M 
+            
+#         elif model =='Cosmography_DIP_ONLY':
 
         elif model =='Cosmography':
     #         H0, M, qm, qd, j, S1, L1, L2, S2= theta #j=Omega_k0 - j0
@@ -52,7 +116,7 @@ class Cosmography:
     # dipole only in q
     #         e = sep(dec_CMB,ra_CMB)
 
-    #         q0 = qm + e*qd *F_decay(z, S)
+    #         q0 = qm + e*qd *#(z, S)
 
     #         q0 = qm + e*qd *F_decay(z, S1)
     #         H = 1/3*thet - e_mu*e_nu*sigma
@@ -64,8 +128,10 @@ class Cosmography:
 
 
     # dipole in q & quadrupole in H
+            theta1, theta2, theta3 = self.quadrupole_coord()
             H0_m, M, qm, qd, j, S1, L1, L2, S2= theta #j=Omega_k0 - j0
             q0 = qm + e*qd *F_decay(z, S1)
+            
 
             H0 = H0_m*(1 +(L1*(np.cos(theta1))**2 + L2*(np.cos(theta2))**2 -(L1 + L2)*(np.cos(theta3))**2 )* F_decay(z,S2))
      #SAME FOR ALL
@@ -131,8 +197,9 @@ class Cosmography:
                 return -np.inf
 
         elif model =='wCDM':
-            M, H0, Om0, w0, = theta
-            if 0.0 <= Om0 < 1.0  and -20. < M  < 20. and  20. < H0 < 100. and -5 < w0 < 0.:
+           
+            M, H0, Om0, w0 = theta
+            if 0.0 <= Om0 < 1.0  and -20. < M  < 20. and  20. < H0 < 100. and -5 < w0 < 5.:
                 return 0.0
             else :
                 return -np.inf
@@ -150,7 +217,11 @@ class Cosmography:
                 return -np.inf
 
 
-    #     elif model =='FLRW_Cosmography':
+    #     elif model = cite MultiNest <pymultinest> and Cuba <pycuba> accordingly, depending on which algorithm you connect your Python program to using this package.
+
+If you find PyMultiNest enables your research, please consider citing my publication to give back for the time I invested:
+
+='FLRW_Cosmography':
     #         H0, M, q0, j = theta #j=Omega_k0 - j0
     #         if  -20. < M  < 10. and  20. < H0 < 100. and -5. < j < 5. and -5. < q0 < 5.:
     #             return 0.0    
@@ -211,19 +282,32 @@ class Cosmography:
 
         elif model == 'wCDM':
             #initial values to start the chain from, ideally use MLE first
-            initial =  -19, 60, 0.7, -.9 # M, H0, Om0, w0        
+            initial =  -19, 60, 0.3, -.9 # M, H0, Om0, w0    M, H0, Om0, w0 = theta    
             pos = initial + 1e-4 * np.random.randn(32, 4) #perturb randomly around the initial values
             nwalkers, ndim = pos.shape
             sampler = emcee.EnsembleSampler(
                 nwalkers, ndim, self.log_probability, args=(zCMB, m_b_corr, model)
             )
             sampler.run_mcmc(pos, N_step, progress=True); #run with 50000 steps
-            samples = sampler.get_chain(discard= round(N_step/3), thin=15, flat=True) #remove burn in, thin, flatten
+            wCDM_samples = sampler.get_chain(discard= round(N_step/3), thin=15, flat=True) #remove burn in, thin, flatten
             np.savetxt('wCDM_chains_P+.txt', wCDM_samples)
             labels = [  'M', 'H0', '$\Omega_m$',  'w']
             fig = corner.corner(
-            wCDM_samples, labels=labels,  smooth = 1);
+            samples, labels=labels,  smooth = 1);
+            
+            #load pantheons chains to compare
+            p_chains  = np.loadtxt('DataRelease/Pantheon+_Data/5_COSMOLOGY/chains/Pantheon+Only/Pantheon+only_FlatwCDM.txt')
+            official_chains = MCSamples(samples = p_chains, names = ['Omega_m',  'H0', 'w', 'M', 'prior', 'post'])# 
+            names= ['M', 'H0', 'Omega_m', 'w']
 
+            wCDM_chains= MCSamples(samples=wCDM_samples, names = names)
+
+            wCDM_chains.removeBurn(0.3)
+
+            g = plots.get_subplot_plotter()
+            g.triangle_plot([official_chains, wCDM_chains], ['Omega_m',  'H0', 'w', 'M'], legend_labels=['P+', 'Jess'])
+            plt.savefig('wCDM.pdf')
+            
         elif model == 'w0waCDM':
             initial = -19, 70, 0.7, -.9, 0.1 # M, H0, Om0,  w0, wa = theta        
             pos = initial + 1e-4 * np.random.randn(32, 5)
